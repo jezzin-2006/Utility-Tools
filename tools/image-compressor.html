@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Compressor - UtilityTools</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <style>
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-lg);
+            padding: 3rem;
+            text-align: center;
+            background: #f8fafc;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            margin-bottom: 2rem;
+        }
+
+        .upload-area:hover,
+        .upload-area.dragover {
+            border-color: var(--primary);
+            background: #eff6ff;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .options-panel {
+            background: var(--bg-surface);
+            padding: 1.5rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            margin-bottom: 2rem;
+            display: none;
+            /* Hidden until file selected */
+        }
+
+        .compression-options {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .option-card {
+            flex: 1;
+            padding: 1rem;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .option-card:hover {
+            border-color: var(--primary-light);
+        }
+
+        .option-card.selected {
+            border-color: var(--primary);
+            background-color: #eff6ff;
+            color: var(--primary-dark);
+        }
+
+        .preview-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+            margin-top: 2rem;
+            display: none;
+            /* Hidden until compression */
+        }
+
+        @media (min-width: 768px) {
+            .preview-container {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .preview-box {
+            background: var(--bg-surface);
+            padding: 1rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+        }
+
+        .preview-box h4 {
+            margin-bottom: 0.5rem;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stats {
+            font-size: 0.9rem;
+            color: var(--text-main);
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        img.preview-img {
+            max-width: 100%;
+            height: auto;
+            border-radius: var(--radius-sm);
+            display: block;
+        }
+
+        .action-buttons {
+            margin-top: 2rem;
+            display: none;
+            /* Hidden until compressed */
+            gap: 1rem;
+            justify-content: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="../index.html" class="logo">UtilityTools</a>
+            <ul class="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="../image-tools.html" class="active">Image Tools</a></li>
+                <li><a href="#">GitHub</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: 4rem; padding-bottom: 4rem;">
+        <div style="max-width: 800px; margin: 0 auto;">
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <h1>Image Compressor</h1>
+                <p style="color: var(--text-muted);">Compress images locally in your browser. No server uploads.</p>
+            </div>
+
+            <!-- Upload Area -->
+            <div class="upload-area" id="dropZone">
+                <span class="upload-icon">📂</span>
+                <h3>Click to upload or drag & drop</h3>
+                <p style="color: var(--text-light); font-size: 0.9rem;">Supports JPG, PNG, WebP</p>
+                <input type="file" id="fileInput" accept="image/*" style="display: none;">
+            </div>
+
+            <!-- Options Panel -->
+            <div class="options-panel" id="optionsPanel">
+                <h3>Compression Level</h3>
+                <div class="compression-options">
+                    <div class="option-card selected" onclick="selectOption('slight')" id="opt-slight">
+                        <h4>Slight Compress</h4>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem; color: inherit;">Best Quality</p>
+                    </div>
+                    <div class="option-card" onclick="selectOption('max')" id="opt-max">
+                        <h4>Maximum Compress</h4>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem; color: inherit;">Smallest Size</p>
+                    </div>
+                </div>
+                <div style="margin-top: 1.5rem; text-align: center;">
+                    <button class="btn btn-primary" onclick="processImage()">Compress Image</button>
+                </div>
+            </div>
+
+            <!-- Preview & Download -->
+            <div class="preview-container" id="previewContainer">
+                <div class="preview-box">
+                    <h4>Original</h4>
+                    <div class="stats" id="originalStats">Size: 0 KB</div>
+                    <img id="originalPreview" class="preview-img" src="">
+                </div>
+                <div class="preview-box">
+                    <h4>Compressed</h4>
+                    <div class="stats" id="compressedStats">Size: 0 KB <span
+                            style="color: #10b981; margin-left: 0.5rem;" id="savingTag">(-0%)</span></div>
+                    <img id="compressedPreview" class="preview-img" src="">
+                </div>
+            </div>
+
+            <div class="action-buttons" id="actionButtons">
+                <a id="downloadBtn" download="compressed-image.jpg" class="btn btn-primary">Download Compressed
+                    Image</a>
+                <button class="btn btn-secondary" onclick="resetTool()">Compress Another</button>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 UtilityTools.</p>
+        </div>
+    </footer>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const optionsPanel = document.getElementById('optionsPanel');
+        const previewContainer = document.getElementById('previewContainer');
+        const actionButtons = document.getElementById('actionButtons');
+
+        let currentFile = null;
+        let selectedMode = 'slight'; // 'slight' or 'max'
+
+        // Drag & Drop
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) handleFile(e.target.files[0]);
+        });
+
+        function handleFile(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('Please upload an image file.');
+                return;
+            }
+            currentFile = file;
+
+            // Show options
+            dropZone.style.display = 'none';
+            optionsPanel.style.display = 'block';
+
+            // Show original preview immediately needed? Or wait for compress?
+            // Let's show original stats
+            document.getElementById('originalStats').textContent = `Size: ${formatBytes(file.size)}`;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('originalPreview').src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function selectOption(mode) {
+            selectedMode = mode;
+            document.getElementById('opt-slight').classList.toggle('selected', mode === 'slight');
+            document.getElementById('opt-max').classList.toggle('selected', mode === 'max');
+        }
+
+        function processImage() {
+            if (!currentFile) return;
+
+            const quality = selectedMode === 'slight' ? 0.8 : 0.5;
+            const reader = new FileReader();
+
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+
+                    ctx.drawImage(img, 0, 0);
+
+                    // Compress
+                    const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+
+                    // Show results
+                    optionsPanel.style.display = 'none';
+                    previewContainer.style.display = 'grid';
+                    actionButtons.style.display = 'flex';
+
+                    const compressedPreview = document.getElementById('compressedPreview');
+                    compressedPreview.src = compressedDataUrl;
+
+                    // Calculate size
+                    const head = 'data:image/jpeg;base64,';
+                    const size = Math.round((compressedDataUrl.length - head.length) * 3 / 4);
+
+                    const saving = ((currentFile.size - size) / currentFile.size * 100).toFixed(0);
+
+                    document.getElementById('compressedStats').innerHTML =
+                        `Size: ${formatBytes(size)} <span style="color: #10b981; margin-left: 0.5rem;">(-${saving}%)</span>`;
+
+                    // Setup Download
+                    const downloadBtn = document.getElementById('downloadBtn');
+                    downloadBtn.href = compressedDataUrl;
+                    downloadBtn.download = `compressed_${currentFile.name.split('.')[0]}.jpg`;
+                };
+            };
+            reader.readAsDataURL(currentFile);
+        }
+
+        function resetTool() {
+            currentFile = null;
+            fileInput.value = '';
+            dropZone.style.display = 'block';
+            optionsPanel.style.display = 'none';
+            previewContainer.style.display = 'none';
+            actionButtons.style.display = 'none';
+        }
+
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slowed + Reverb Generator - UtilityTools</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
+    <style>
+        .workspace {
+            display: none;
+            margin-top: 2rem;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-lg);
+            padding: 3rem;
+            text-align: center;
+            background: #f8fafc;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            background: #eff6ff;
+            border-color: var(--primary);
+        }
+
+        #waveform {
+            background: #f1f5f9;
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border);
+        }
+
+        .controls-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 2rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+        }
+
+        .control-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .action-bar {
+            margin-top: 2rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="../index.html" class="logo">UtilityTools</a>
+            <ul class="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="../audio-tools.html" class="active">Audio Tools</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: 4rem; padding-bottom: 4rem;">
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <h1>Slowed + Reverb</h1>
+            <p style="color: var(--text-muted);">Create the aesthetic "vaporwave" vibe.</p>
+        </div>
+
+        <div class="upload-area" id="dropZone" style="max-width: 800px; margin: 0 auto;">
+            <span style="font-size: 3rem;">📼</span>
+            <h3>Upload Audio File</h3>
+            <p style="color: var(--text-light);">Supports MP3, WAV, OGG</p>
+            <input type="file" id="fileInput" accept="audio/*" style="display: none;">
+        </div>
+
+        <div class="workspace" id="workspace">
+            <div id="waveform"></div>
+
+            <div class="controls-container">
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Speed (Pitch)</span> <span id="speedVal">0.85x</span>
+                    </div>
+                    <input type="range" id="speed" min="0.5" max="1.0" value="0.85" step="0.01" style="width: 100%;">
+                    <p style="font-size: 0.8rem; color: var(--text-light); margin-top: 0.2rem;">Lower values make it
+                        slower and deeper.</p>
+                </div>
+
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Reverb Amount</span> <span id="reverbVal">40%</span>
+                    </div>
+                    <input type="range" id="reverb" min="0" max="1" value="0.4" step="0.05" style="width: 100%;">
+                </div>
+
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Room Size (Decay)</span> <span id="decayVal">3.0s</span>
+                    </div>
+                    <input type="range" id="decay" min="1" max="10" value="3" step="0.5" style="width: 100%;">
+                </div>
+
+                <div class="action-bar">
+                    <button class="btn btn-secondary" id="previewBtn">Preview (Dry)</button>
+                    <button class="btn btn-primary" onclick="renderSlowed()">Process & Download</button>
+                </div>
+                <div id="status"
+                    style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-light); text-align: center;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+
+        let wavesurfer;
+        let audioBuffer;
+
+        // UI Helpers
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFile);
+
+        const updateLabel = (id, val) => document.getElementById(id).innerText = val;
+
+        document.getElementById('speed').oninput = (e) => updateLabel('speedVal', e.target.value + 'x');
+        document.getElementById('reverb').oninput = (e) => updateLabel('reverbVal', Math.round(e.target.value * 100) + '%');
+        document.getElementById('decay').oninput = (e) => updateLabel('decayVal', e.target.value + 's');
+
+        async function handleFile(e) {
+            if (!e.target.files.length) return;
+            const file = e.target.files[0];
+
+            dropZone.style.display = 'none';
+            document.getElementById('workspace').style.display = 'block';
+
+            wavesurfer = WaveSurfer.create({
+                container: '#waveform',
+                waveColor: '#94a3b8',
+                progressColor: '#2563eb',
+                cursorColor: '#2563eb',
+                height: 80,
+            });
+
+            const arrayBuffer = await file.arrayBuffer();
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            audioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+
+            wavesurfer.load(URL.createObjectURL(file));
+            document.getElementById('previewBtn').onclick = () => wavesurfer.playPause();
+        }
+
+        async function renderSlowed() {
+            if (!audioBuffer) return;
+            const btn = document.querySelector('.btn-primary');
+            const status = document.getElementById('status');
+
+            btn.disabled = true;
+            status.innerText = "Generating Aesthetic... ☁️";
+
+            try {
+                const speed = parseFloat(document.getElementById('speed').value);
+                const reverbAmt = parseFloat(document.getElementById('reverb').value);
+                const decay = parseFloat(document.getElementById('decay').value);
+
+                // Calculate new duration
+                const newDuration = audioBuffer.duration / speed;
+
+                // Create Offline Context
+                // We add some tail time for reverb decay
+                const offlineCtx = new OfflineAudioContext(2, (newDuration + decay) * audioBuffer.sampleRate, audioBuffer.sampleRate);
+
+                // 1. Source (Slowed)
+                const source = offlineCtx.createBufferSource();
+                source.buffer = audioBuffer;
+                source.playbackRate.value = speed;
+
+                // 2. Convolver (Reverb)
+                const convolver = offlineCtx.createConvolver();
+                convolver.buffer = await createReverbImpulse(offlineCtx, decay);
+
+                // 3. Mixing
+                const dryNode = offlineCtx.createGain();
+                const wetNode = offlineCtx.createGain();
+
+                dryNode.gain.value = 1 - (reverbAmt * 0.4); // Reduce dry slightly as wet increases
+                wetNode.gain.value = reverbAmt;
+
+                // Graph:
+                // Source -> Dry -> Dest
+                // Source -> Convolver -> Wet -> Dest
+                source.connect(dryNode);
+                dryNode.connect(offlineCtx.destination);
+
+                source.connect(convolver);
+                convolver.connect(wetNode);
+                wetNode.connect(offlineCtx.destination);
+
+                source.start();
+
+                // Render
+                const renderedBuffer = await offlineCtx.startRendering();
+                const wavBlob = bufferToWave(renderedBuffer, renderedBuffer.length);
+
+                // Download
+                const url = URL.createObjectURL(wavBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'slowed_reverb.wav';
+                a.click();
+
+                status.innerText = "Done! Vibe created.";
+            } catch (err) {
+                status.innerText = "Error: " + err.message;
+            }
+            btn.disabled = false;
+        }
+
+        // Generate synthetic impulse response for reverb
+        async function createReverbImpulse(ctx, duration) {
+            const rate = ctx.sampleRate;
+            const length = rate * duration;
+            const impulse = ctx.createBuffer(2, length, rate);
+
+            for (let channel = 0; channel < 2; channel++) {
+                const channelData = impulse.getChannelData(channel);
+                for (let i = 0; i < length; i++) {
+                    const decay = Math.pow(1 - i / length, 2); // Exponential decay
+                    // White noise * decay
+                    channelData[i] = (Math.random() * 2 - 1) * decay;
+                }
+            }
+            return impulse;
+        }
+
+        // Buffer to WAV Util
+        function bufferToWave(abuffer, len) {
+            let numOfChan = abuffer.numberOfChannels,
+                length = len * numOfChan * 2 + 44,
+                buffer = new ArrayBuffer(length),
+                view = new DataView(buffer),
+                channels = [], i, sample,
+                offset = 0,
+                pos = 0;
+            setUint32(0x46464952); setUint32(length - 8); setUint32(0x45564157);
+            setUint32(0x20746d66); setUint32(16); setUint16(1); setUint16(numOfChan);
+            setUint32(abuffer.sampleRate); setUint32(abuffer.sampleRate * 2 * numOfChan);
+            setUint16(numOfChan * 2); setUint16(16); setUint32(0x61746164);
+            setUint32(length - pos - 4);
+            for (i = 0; i < abuffer.numberOfChannels; i++) channels.push(abuffer.getChannelData(i));
+            while (pos < len) {
+                for (i = 0; i < numOfChan; i++) {
+                    sample = Math.max(-1, Math.min(1, channels[i][pos]));
+                    sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+                    view.setInt16(44 + offset, sample, true); offset += 2;
+                } pos++;
+            }
+            return new Blob([buffer], { type: "audio/wav" });
+            function setUint16(data) { view.setUint16(pos, data, true); pos += 2; }
+            function setUint32(data) { view.setUint32(pos, data, true); pos += 4; }
+        }
+    </script>
+</body>
+
+</html>

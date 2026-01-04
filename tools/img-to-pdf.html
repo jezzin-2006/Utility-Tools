@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image to PDF - UtilityTools</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <style>
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-lg);
+            padding: 3rem;
+            text-align: center;
+            background: #f8fafc;
+            cursor: pointer;
+        }
+
+        .img-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .img-item {
+            position: relative;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            aspect-ratio: 1;
+        }
+
+        .img-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .remove-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="../index.html" class="logo">UtilityTools</a>
+            <ul class="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="../pdf-tools.html" class="active">PDF Tools</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: 4rem; padding-bottom: 4rem;">
+        <div style="max-width: 800px; margin: 0 auto;">
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <h1>Image to PDF</h1>
+                <p style="color: var(--text-muted);">Convert specific photos into a PDF document.</p>
+            </div>
+
+            <div class="upload-area" id="dropZone">
+                <span style="font-size: 3rem;">📄</span>
+                <h3>Upload Images</h3>
+                <input type="file" id="fileInput" accept="image/png, image/jpeg, image/jpg" multiple
+                    style="display: none;">
+            </div>
+
+            <div class="img-list" id="imgList"></div>
+
+            <div id="actions" style="display:none; text-align: center;">
+                <button class="btn btn-primary" onclick="createPDF()">Create & Download PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const imgList = document.getElementById('imgList');
+
+        let images = [];
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => addImages(e.target.files));
+
+        function addImages(files) {
+            Array.from(files).forEach(file => {
+                images.push(file);
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const div = document.createElement('div');
+                    div.className = 'img-item';
+                    div.innerHTML = `
+                        <img src="${e.target.result}">
+                        <button class="remove-btn" onclick="removeImg(this, '${file.name}')">×</button>
+                    `;
+                    imgList.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            });
+            updateUI();
+        }
+
+        function removeImg(btn, name) {
+            btn.parentElement.remove();
+            images = images.filter(f => f.name !== name);
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('actions').style.display = images.length ? 'block' : 'none';
+        }
+
+        async function createPDF() {
+            const pdfDoc = await PDFLib.PDFDocument.create();
+
+            for (const imageFile of images) {
+                const arrayBuffer = await imageFile.arrayBuffer();
+                let pdfImage;
+
+                if (imageFile.type === 'image/jpeg') {
+                    pdfImage = await pdfDoc.embedJpg(arrayBuffer);
+                } else {
+                    pdfImage = await pdfDoc.embedPng(arrayBuffer);
+                }
+
+                const page = pdfDoc.addPage([pdfImage.width, pdfImage.height]);
+                page.drawImage(pdfImage, {
+                    x: 0,
+                    y: 0,
+                    width: pdfImage.width,
+                    height: pdfImage.height,
+                });
+            }
+
+            const pdfBytes = await pdfDoc.save();
+            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'images.pdf';
+            link.click();
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Merger - UtilityTools</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <style>
+        .file-list {
+            margin: 2rem 0;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .file-item {
+            background: white;
+            padding: 1rem;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .file-icon {
+            font-size: 1.5rem;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-lg);
+            padding: 3rem;
+            text-align: center;
+            background: #f8fafc;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            background: #eff6ff;
+            border-color: var(--primary);
+        }
+
+        .controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .ctrl-btn {
+            background: none;
+            border: 1px solid var(--border);
+            padding: 0.25rem 0.5rem;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .ctrl-btn:hover {
+            background: #f1f5f9;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="../index.html" class="logo">UtilityTools</a>
+            <ul class="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="../pdf-tools.html" class="active">PDF Tools</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: 4rem; padding-bottom: 4rem;">
+        <div style="max-width: 800px; margin: 0 auto;">
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <h1>PDF Merger</h1>
+                <p style="color: var(--text-muted);">Combine multiple PDF files into one.</p>
+            </div>
+
+            <div class="upload-area" id="dropZone">
+                <span style="font-size: 3rem;">🖇️</span>
+                <h3>Add PDFs to Merge</h3>
+                <input type="file" id="fileInput" accept=".pdf" multiple style="display: none;">
+            </div>
+
+            <div class="file-list" id="fileList">
+                <!-- Items -->
+            </div>
+
+            <div style="text-align: center; display: none;" id="actionArea">
+                <button class="btn btn-primary" onclick="mergePDFs()">Merge PDFs</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        const actionArea = document.getElementById('actionArea');
+
+        let files = []; // Array of { id, file }
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => addFiles(e.target.files));
+
+        function addFiles(newFiles) {
+            Array.from(newFiles).forEach(f => {
+                if (f.type === 'application/pdf') {
+                    files.push({ id: Date.now() + Math.random(), file: f });
+                }
+            });
+            renderList();
+        }
+
+        function renderList() {
+            fileList.innerHTML = '';
+            files.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'file-item';
+                div.innerHTML = `
+                    <div class="file-info">
+                        <span class="file-icon">📄</span>
+                        <span>${item.file.name}</span>
+                        <span style="font-size: 0.8rem; color: #94a3b8;">(${formatBytes(item.file.size)})</span>
+                    </div>
+                    <div class="controls">
+                        <button class="ctrl-btn" onclick="move(${index}, -1)" ${index === 0 ? 'disabled' : ''}>⬆️</button>
+                        <button class="ctrl-btn" onclick="move(${index}, 1)" ${index === files.length - 1 ? 'disabled' : ''}>⬇️</button>
+                        <button class="ctrl-btn" onclick="remove(${index})" style="color: red;">✕</button>
+                    </div>
+                `;
+                fileList.appendChild(div);
+            });
+            actionArea.style.display = files.length > 1 ? 'block' : 'none';
+        }
+
+        function move(index, dir) {
+            const item = files.splice(index, 1)[0];
+            files.splice(index + dir, 0, item);
+            renderList();
+        }
+
+        function remove(index) {
+            files.splice(index, 1);
+            renderList();
+        }
+
+        async function mergePDFs() {
+            if (files.length < 2) return;
+
+            const mergedPdf = await PDFLib.PDFDocument.create();
+
+            for (const item of files) {
+                const arrayBuffer = await item.file.arrayBuffer();
+                const pdf = await PDFLib.PDFDocument.load(arrayBuffer);
+                const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+                copiedPages.forEach((page) => mergedPdf.addPage(page));
+            }
+
+            const pdfBytes = await mergedPdf.save();
+            download(pdfBytes, 'merged-document.pdf', 'application/pdf');
+        }
+
+        function download(data, filename, type) {
+            const blob = new Blob([data], { type: type });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+    </script>
+</body>
+
+</html>

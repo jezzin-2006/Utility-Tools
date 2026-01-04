@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Resizer - UtilityTools</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <style>
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-lg);
+            padding: 3rem;
+            text-align: center;
+            background: #f8fafc;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            margin-bottom: 2rem;
+        }
+
+        .upload-area:hover,
+        .upload-area.dragover {
+            border-color: var(--primary);
+            background: #eff6ff;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .controls-panel {
+            background: var(--bg-surface);
+            padding: 2rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            margin-bottom: 2rem;
+            display: none;
+        }
+
+        .input-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        input[type="number"] {
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            width: 120px;
+            font-family: inherit;
+        }
+
+        .toggle-switch {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .preview-box {
+            text-align: center;
+            margin-top: 2rem;
+            display: none;
+        }
+
+        img.preview-img {
+            max-width: 100%;
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow-md);
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="../index.html" class="logo">UtilityTools</a>
+            <ul class="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="../image-tools.html" class="active">Image Tools</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: 4rem; padding-bottom: 4rem;">
+        <div style="max-width: 800px; margin: 0 auto;">
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <h1>Image Resizer</h1>
+                <p style="color: var(--text-muted);">Resize images by pixel or percentage.</p>
+            </div>
+
+            <div class="upload-area" id="dropZone">
+                <span class="upload-icon">📏</span>
+                <h3>Upload Image to Resize</h3>
+                <input type="file" id="fileInput" accept="image/*" style="display: none;">
+            </div>
+
+            <div class="controls-panel" id="controlsPanel">
+                <div class="input-group">
+                    <label>Dimensions (Pixels)</label>
+                    <div class="input-wrapper">
+                        <div>
+                            <input type="number" id="widthInput" placeholder="Width">
+                            <span
+                                style="font-size: 0.8rem; display: block; margin-top: 0.25rem; color: var(--text-light);">Width</span>
+                        </div>
+                        <span style="font-weight: bold; color: var(--text-light);">X</span>
+                        <div>
+                            <input type="number" id="heightInput" placeholder="Height">
+                            <span
+                                style="font-size: 0.8rem; display: block; margin-top: 0.25rem; color: var(--text-light);">Height</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="ratioCheckbox" checked>
+                        Maintain Aspect Ratio
+                    </label>
+                </div>
+
+                <div class="input-group">
+                    <label>Or Resize by Percentage</label>
+                    <input type="range" id="percentRange" min="10" max="200" value="100" style="width: 100%;">
+                    <div id="percentValue" style="margin-top: 0.5rem; font-weight: 500;">100%</div>
+                </div>
+
+                <div style="text-align: center; margin-top: 2rem;">
+                    <button class="btn btn-primary" onclick="resizeImage()">Resize & Download</button>
+                    <button class="btn btn-secondary" onclick="resetTool()">Reset</button>
+                </div>
+            </div>
+
+            <div class="preview-box" id="previewBox">
+                <h3>Preview</h3>
+                <p id="newDimensions" style="color: var(--text-muted); margin-bottom: 1rem;"></p>
+                <img id="resultImage" class="preview-img">
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const controlsPanel = document.getElementById('controlsPanel');
+        const widthInput = document.getElementById('widthInput');
+        const heightInput = document.getElementById('heightInput');
+        const ratioCheckbox = document.getElementById('ratioCheckbox');
+        const percentRange = document.getElementById('percentRange');
+        const percentValue = document.getElementById('percentValue');
+
+        let originalImage = null;
+        let aspectRatio = 0;
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) handleFile(e.target.files[0]);
+        });
+
+        function handleFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                originalImage = new Image();
+                originalImage.onload = () => {
+                    aspectRatio = originalImage.width / originalImage.height;
+                    widthInput.value = originalImage.width;
+                    heightInput.value = originalImage.height;
+
+                    dropZone.style.display = 'none';
+                    controlsPanel.style.display = 'block';
+                };
+                originalImage.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        widthInput.addEventListener('input', () => {
+            if (ratioCheckbox.checked && widthInput.value) {
+                heightInput.value = Math.round(widthInput.value / aspectRatio);
+                percentRange.value = Math.round((widthInput.value / originalImage.width) * 100);
+                percentValue.textContent = percentRange.value + '%';
+            }
+        });
+
+        heightInput.addEventListener('input', () => {
+            if (ratioCheckbox.checked && heightInput.value) {
+                widthInput.value = Math.round(heightInput.value * aspectRatio);
+                percentRange.value = Math.round((heightInput.value / originalImage.height) * 100);
+                percentValue.textContent = percentRange.value + '%';
+            }
+        });
+
+        percentRange.addEventListener('input', () => {
+            const pct = percentRange.value;
+            percentValue.textContent = pct + '%';
+            widthInput.value = Math.round(originalImage.width * (pct / 100));
+            heightInput.value = Math.round(originalImage.height * (pct / 100));
+        });
+
+        function resizeImage() {
+            if (!originalImage) return;
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const w = parseInt(widthInput.value);
+            const h = parseInt(heightInput.value);
+
+            canvas.width = w;
+            canvas.height = h;
+            ctx.drawImage(originalImage, 0, 0, w, h);
+
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+            const link = document.createElement('a');
+            link.download = 'resized-image.jpg';
+            link.href = dataUrl;
+            link.click();
+
+            // Preview
+            document.getElementById('previewBox').style.display = 'block';
+            document.getElementById('resultImage').src = dataUrl;
+            document.getElementById('newDimensions').textContent = `${w} x ${h} pixels`;
+        }
+
+        function resetTool() {
+            originalImage = null;
+            fileInput.value = '';
+            dropZone.style.display = 'block';
+            controlsPanel.style.display = 'none';
+            document.getElementById('previewBox').style.display = 'none';
+        }
+    </script>
+</body>
+
+</html>

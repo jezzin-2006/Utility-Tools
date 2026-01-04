@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Converter - UtilityTools</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+
+    <!-- External Libraries for Advanced Formats -->
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/utif@3.1.0/UTIF.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/psd.js/3.2.0/psd.min.js"></script>
+
+    <style>
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-lg);
+            padding: 3rem;
+            text-align: center;
+            background: #f8fafc;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .upload-area:hover,
+        .upload-area.dragover {
+            border-color: var(--primary);
+            background: #eff6ff;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-lg);
+            z-index: 10;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .options-panel {
+            background: var(--bg-surface);
+            padding: 1.5rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            margin-bottom: 2rem;
+            display: none;
+        }
+
+        .format-selector {
+            margin: 1.5rem 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 1rem;
+        }
+
+        .format-btn {
+            background: var(--bg-body);
+            border: 2px solid var(--border);
+            padding: 0.75rem;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .format-btn:hover {
+            border-color: var(--primary-light);
+        }
+
+        .format-btn.selected {
+            border-color: var(--primary);
+            background: #eff6ff;
+            color: var(--primary);
+        }
+
+        .preview-container {
+            display: none;
+            text-align: center;
+            margin-top: 2rem;
+            background: var(--bg-surface);
+            padding: 2rem;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+        }
+
+        img.preview-img {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-reset {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            text-decoration: underline;
+            cursor: pointer;
+            margin-top: 1rem;
+            display: inline-block;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="../index.html" class="logo">UtilityTools</a>
+            <ul class="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="../image-tools.html" class="active">Image Tools</a></li>
+                <li><a href="#">GitHub</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: 4rem; padding-bottom: 4rem;">
+        <div style="max-width: 800px; margin: 0 auto;">
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <h1>Image Converter</h1>
+                <p style="color: var(--text-muted);">Support for HEIC, PSD, TIFF, WEBP, and more.</p>
+            </div>
+
+            <!-- Upload Area -->
+            <div class="upload-area" id="dropZone">
+                <div class="loading-overlay" id="loadingOverlay">
+                    <div class="spinner"></div>
+                    <p>Processing...</p>
+                </div>
+                <span class="upload-icon">🔄</span>
+                <h3>Click or Drop Image Here</h3>
+                <p style="color: var(--text-light); font-size: 0.9rem; max-width: 500px; margin: 0.5rem auto;">
+                    Supports: JPG, PNG, WEBP, GIF, HEIC, TIFF, PSD, BMP
+                </p>
+                <input type="file" id="fileInput" accept="image/*,.heic,.heif,.psd,.tiff,.tif,.bmp"
+                    style="display: none;">
+            </div>
+
+            <!-- Options -->
+            <div class="options-panel" id="optionsPanel">
+                <h3 style="text-align: center;">Select Output Format</h3>
+                <div class="format-selector">
+                    <div class="format-btn selected" onclick="selectFormat('png')">PNG</div>
+                    <div class="format-btn" onclick="selectFormat('jpeg')">JPEG</div>
+                    <div class="format-btn" onclick="selectFormat('webp')">WebP</div>
+                    <div class="format-btn" onclick="selectFormat('bmp')">BMP</div>
+                    <div class="format-btn" onclick="selectFormat('avif')">AVIF</div>
+                </div>
+                <div style="text-align: center; margin-top: 2rem;">
+                    <button class="btn btn-primary" onclick="convertImage()">Convert Now</button>
+                    <br>
+                    <button class="btn-reset" onclick="resetTool()">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Result -->
+            <div class="preview-container" id="resultPanel">
+                <h3>Conversion Complete!</h3>
+                <p style="color: var(--text-muted); margin-bottom: 1.5rem;" id="resultMeta"></p>
+
+                <img id="resultImage" class="preview-img" src="">
+
+                <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                    <a id="downloadBtn" class="btn btn-primary" download>Download Image</a>
+                    <button class="btn btn-secondary" onclick="resetTool()">Convert Another</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 UtilityTools.</p>
+        </div>
+    </footer>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const optionsPanel = document.getElementById('optionsPanel');
+        const resultPanel = document.getElementById('resultPanel');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+
+        let currentImageElement = null; // Will hold the Image object or Canvas ready for conversion
+        let originalFileName = '';
+        let targetFormat = 'png';
+
+        // Drag & Drop
+        dropZone.addEventListener('click', () => {
+            if (loadingOverlay.style.display !== 'flex') fileInput.click();
+        });
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) handleFile(e.target.files[0]);
+        });
+
+        function showLoading(show) {
+            loadingOverlay.style.display = show ? 'flex' : 'none';
+        }
+
+        async function handleFile(file) {
+            originalFileName = file.name;
+            showLoading(true);
+
+            try {
+                const ext = file.name.split('.').pop().toLowerCase();
+                let imageUrl = '';
+
+                // HEIC Handling
+                if (ext === 'heic' || ext === 'heif') {
+                    const blob = await heic2any({ blob: file, toType: "image/jpeg" });
+                    imageUrl = URL.createObjectURL(Array.isArray(blob) ? blob[0] : blob);
+                    await loadImage(imageUrl);
+                }
+                // TIFF Handling
+                else if (ext === 'tiff' || ext === 'tif') {
+                    const buffer = await file.arrayBuffer();
+                    const ifds = UTIF.decode(buffer);
+                    if (ifds.length === 0) throw new Error("Invalid TIFF");
+                    UTIF.decodeImage(buffer, ifds[0]);
+                    const rgba = UTIF.toRGBA8(ifds[0]);
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = ifds[0].width;
+                    canvas.height = ifds[0].height;
+                    const ctx = canvas.getContext('2d');
+                    const imgData = ctx.createImageData(canvas.width, canvas.height);
+                    imgData.data.set(rgba);
+                    ctx.putImageData(imgData, 0, 0);
+
+                    currentImageElement = canvas; // Store canvas directly
+                    stepToOptions();
+                }
+                // PSD Handling
+                else if (ext === 'psd') {
+                    const url = URL.createObjectURL(file);
+                    const psd = await PSD.fromURL(url);
+                    currentImageElement = psd.image.toPng(); // Returns an image element
+                    stepToOptions();
+                }
+                // Standard Images (JPG, PNG, GIF, BMP, WEBP, SVG)
+                else {
+                    imageUrl = URL.createObjectURL(file);
+                    await loadImage(imageUrl);
+                }
+
+            } catch (error) {
+                alert('Error loading image: ' + error.message + '\nNote: RAW files (CR3, NEF, etc) are not supported in this browser version.');
+                showLoading(false);
+                console.error(error);
+            }
+        }
+
+        function loadImage(url) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => {
+                    currentImageElement = img;
+                    stepToOptions();
+                    resolve();
+                };
+                img.onerror = () => reject(new Error("Failed to load image"));
+                img.src = url;
+            });
+        }
+
+        function stepToOptions() {
+            showLoading(false);
+            dropZone.style.display = 'none';
+            optionsPanel.style.display = 'block';
+        }
+
+        function selectFormat(format) {
+            targetFormat = format;
+            document.querySelectorAll('.format-btn').forEach(btn => {
+                btn.classList.toggle('selected', btn.textContent.toLowerCase() === (format === 'jpeg' ? 'jpg' : format));
+            });
+        }
+
+        function convertImage() {
+            if (!currentImageElement) return;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = currentImageElement.width;
+            canvas.height = currentImageElement.height;
+            const ctx = canvas.getContext('2d');
+
+            // Fill white background for formats that don't support transparency
+            if (targetFormat === 'jpeg' || targetFormat === 'bmp') {
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            ctx.drawImage(currentImageElement, 0, 0);
+
+            try {
+                let mimeType = `image/${targetFormat}`;
+
+                const dataUrl = canvas.toDataURL(mimeType, 0.9);
+
+                optionsPanel.style.display = 'none';
+                resultPanel.style.display = 'block';
+
+                document.getElementById('resultImage').src = dataUrl;
+                document.getElementById('resultMeta').textContent = `Converted to ${targetFormat.toUpperCase()}`;
+
+                const downloadBtn = document.getElementById('downloadBtn');
+                downloadBtn.href = dataUrl;
+                const nameWithoutExt = originalFileName.substring(0, originalFileName.lastIndexOf('.')) || originalFileName;
+                const ext = targetFormat === 'jpeg' ? 'jpg' : targetFormat;
+                downloadBtn.download = `${nameWithoutExt}_converted.${ext}`;
+
+            } catch (e) {
+                alert("This browser may not support saving to " + targetFormat.toUpperCase() + ". Try PNG or JPG.");
+            }
+        }
+
+        function resetTool() {
+            currentImageElement = null;
+            fileInput.value = '';
+            dropZone.style.display = 'block';
+            optionsPanel.style.display = 'none';
+            resultPanel.style.display = 'none';
+            showLoading(false);
+        }
+    </script>
+</body>
+
+</html>

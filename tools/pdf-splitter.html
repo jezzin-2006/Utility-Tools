@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Splitter - UtilityTools</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        .split-options {
+            background: var(--bg-surface);
+            padding: 2rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            margin-top: 2rem;
+            display: none;
+        }
+
+        .option-group {
+            margin-bottom: 2rem;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            margin-bottom: 0.5rem;
+        }
+
+        .radio-option:hover {
+            background: #f8fafc;
+        }
+
+        .radio-option.selected {
+            border-color: var(--primary);
+            background: #eff6ff;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-lg);
+            padding: 3rem;
+            text-align: center;
+            background: #f8fafc;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="../index.html" class="logo">UtilityTools</a>
+            <ul class="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="../pdf-tools.html" class="active">PDF Tools</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: 4rem; padding-bottom: 4rem;">
+        <div style="max-width: 800px; margin: 0 auto;">
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <h1>PDF Splitter</h1>
+                <p style="color: var(--text-muted);">Extract pages from your PDF documents.</p>
+            </div>
+
+            <div class="upload-area" id="dropZone">
+                <span style="font-size: 3rem;">✂️</span>
+                <h3>Upload PDF to Split</h3>
+                <input type="file" id="fileInput" accept=".pdf" style="display: none;">
+            </div>
+
+            <div class="split-options" id="optionsPanel">
+                <h3 style="margin-bottom: 1.5rem;">Split Options</h3>
+
+                <div class="option-group">
+                    <div class="radio-option selected" onclick="selectMode('range')" id="opt-range">
+                        <input type="radio" name="mode" checked>
+                        <div>
+                            <strong>Extract by Range</strong>
+                            <div style="font-size: 0.9rem; color: var(--text-light);">e.g. 1-5, 8, 11-13</div>
+                        </div>
+                    </div>
+                    <div class="radio-option" onclick="selectMode('all')" id="opt-all">
+                        <input type="radio" name="mode">
+                        <div>
+                            <strong>Extract All Pages</strong>
+                            <div style="font-size: 0.9rem; color: var(--text-light);">Save every page as a separate PDF
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="rangeInputGroup" style="margin-bottom: 2rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Page Range:</label>
+                    <input type="text" id="rangeInput" placeholder="e.g. 1-5"
+                        style="width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: var(--radius-sm);">
+                </div>
+
+                <button class="btn btn-primary" style="width: 100%;" onclick="processSplit()">Split PDF</button>
+            </div>
+
+            <div id="statusMessage" style="text-align: center; margin-top: 1rem; color: var(--text-muted);"></div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const optionsPanel = document.getElementById('optionsPanel');
+
+        let currentFile = null;
+        let mode = 'range';
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                currentFile = e.target.files[0];
+                dropZone.style.display = 'none';
+                optionsPanel.style.display = 'block';
+            }
+        });
+
+        function selectMode(m) {
+            mode = m;
+            document.querySelectorAll('.radio-option').forEach(el => el.classList.remove('selected'));
+            document.getElementById(m === 'range' ? 'opt-range' : 'opt-all').classList.add('selected');
+            document.getElementById('rangeInputGroup').style.display = m === 'range' ? 'block' : 'none';
+        }
+
+        async function processSplit() {
+            if (!currentFile) return;
+
+            const btn = document.querySelector('.btn-primary');
+            btn.disabled = true;
+            btn.textContent = "Processing...";
+
+            try {
+                const arrayBuffer = await currentFile.arrayBuffer();
+                const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+                const totalPages = pdfDoc.getPageCount();
+
+                if (mode === 'all') {
+                    // Extract all pages individually -> Zip
+                    const zip = new JSZip();
+
+                    for (let i = 0; i < totalPages; i++) {
+                        const newPdf = await PDFLib.PDFDocument.create();
+                        const [page] = await newPdf.copyPages(pdfDoc, [i]);
+                        newPdf.addPage(page);
+                        const pdfBytes = await newPdf.save();
+                        zip.file(`page_${i + 1}.pdf`, pdfBytes);
+                    }
+
+                    const content = await zip.generateAsync({ type: "blob" });
+                    download(content, "split_pages.zip");
+
+                } else {
+                    // Extract Range
+                    const rangeStr = document.getElementById('rangeInput').value;
+                    const indices = parseRange(rangeStr, totalPages);
+
+                    if (indices.length === 0) throw new Error("Invalid range or no pages selected.");
+
+                    const newPdf = await PDFLib.PDFDocument.create();
+                    const copiedPages = await newPdf.copyPages(pdfDoc, indices);
+                    copiedPages.forEach(p => newPdf.addPage(p));
+
+                    const pdfBytes = await newPdf.save();
+                    download(new Blob([pdfBytes], { type: 'application/pdf' }), "split_document.pdf");
+                }
+            } catch (err) {
+                alert("Error: " + err.message);
+            }
+
+            btn.disabled = false;
+            btn.textContent = "Split PDF";
+        }
+
+        function parseRange(str, max) {
+            const indices = new Set();
+            const parts = str.split(',');
+
+            parts.forEach(part => {
+                const range = part.trim().split('-');
+                if (range.length === 2) {
+                    let start = parseInt(range[0]);
+                    let end = parseInt(range[1]);
+                    if (start > end) [start, end] = [end, start];
+                    for (let i = start; i <= end; i++) {
+                        if (i >= 1 && i <= max) indices.add(i - 1);
+                    }
+                } else {
+                    const page = parseInt(part);
+                    if (page >= 1 && page <= max) indices.add(page - 1);
+                }
+            });
+            return Array.from(indices).sort((a, b) => a - b);
+        }
+
+        function download(blob, name) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = name;
+            a.click();
+        }
+    </script>
+</body>
+
+</html>

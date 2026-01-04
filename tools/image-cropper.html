@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Cropper - UtilityTools</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <style>
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-lg);
+            padding: 3rem;
+            text-align: center;
+            background: #f8fafc;
+            cursor: pointer;
+        }
+
+        /* Limit container height for cropper to work well */
+        .workspace {
+            display: none;
+            margin-top: 2rem;
+            background: #333;
+            /* Dark bg for better visibility */
+            padding: 1rem;
+            border-radius: var(--radius-md);
+        }
+
+        .img-container {
+            max-height: 500px;
+            /* Limit height */
+        }
+
+        .img-container img {
+            max-width: 100%;
+            display: block;
+            /* Important for cropper */
+        }
+
+        .controls {
+            margin-top: 1.5rem;
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .control-btn {
+            padding: 0.5rem 1rem;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .control-btn:hover {
+            background: #f1f5f9;
+        }
+
+        .control-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .result-container {
+            margin-top: 2rem;
+            text-align: center;
+            display: none;
+        }
+
+        .result-img {
+            max-width: 100%;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-md);
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="../index.html" class="logo">UtilityTools</a>
+            <ul class="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="../image-tools.html" class="active">Image Tools</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: 4rem; padding-bottom: 4rem;">
+        <div style="max-width: 900px; margin: 0 auto;">
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <h1>Image Cropper</h1>
+                <p style="color: var(--text-muted);">Crop photos for social media or custom sizes.</p>
+            </div>
+
+            <div class="upload-area" id="dropZone">
+                <span style="font-size: 3rem;">✂️</span>
+                <h3>Upload Image to Crop</h3>
+                <input type="file" id="fileInput" accept="image/*" style="display: none;">
+            </div>
+
+            <div class="workspace" id="workspace">
+                <div class="img-container">
+                    <img id="image" src="">
+                </div>
+
+                <div class="controls">
+                    <button class="control-btn active" onclick="setAspectRatio(NaN, this)">Free</button>
+                    <button class="control-btn" onclick="setAspectRatio(1, this)">1:1 (Square)</button>
+                    <button class="control-btn" onclick="setAspectRatio(16/9, this)">16:9</button>
+                    <button class="control-btn" onclick="setAspectRatio(4/3, this)">4:3</button>
+                    <button class="control-btn" onclick="setAspectRatio(2/3, this)">2:3 (Pinterest)</button>
+                </div>
+
+                <div class="controls">
+                    <button class="btn btn-primary" onclick="cropImage()">Crop & Download</button>
+                    <button class="btn btn-secondary" onclick="resetTool()">Reset</button>
+                </div>
+            </div>
+
+            <div class="result-container" id="resultContainer">
+                <h3>Cropped Result</h3>
+                <img id="resultImage" class="result-img">
+                <br><br>
+                <a id="downloadBtn" class="btn btn-primary" download="cropped.jpg">Download Image</a>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Cropper JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+
+        let cropper;
+        const image = document.getElementById('image');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    image.src = e.target.result;
+                    startCropper();
+                };
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        });
+
+        function startCropper() {
+            dropZone.style.display = 'none';
+            document.getElementById('workspace').style.display = 'block';
+
+            if (cropper) cropper.destroy();
+            cropper = new Cropper(image, {
+                aspectRatio: NaN, // Free form default
+                viewMode: 1,
+            });
+        }
+
+        function setAspectRatio(ratio, btn) {
+            cropper.setAspectRatio(ratio);
+            document.querySelectorAll('.control-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        function cropImage() {
+            const canvas = cropper.getCroppedCanvas();
+            const dataUrl = canvas.toDataURL('image/jpeg');
+
+            document.getElementById('resultContainer').style.display = 'block';
+            document.getElementById('resultImage').src = dataUrl;
+            document.getElementById('downloadBtn').href = dataUrl;
+
+            // Scroll to result
+            document.getElementById('resultContainer').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function resetTool() {
+            if (cropper) cropper.destroy();
+            fileInput.value = '';
+            dropZone.style.display = 'block';
+            document.getElementById('workspace').style.display = 'none';
+            document.getElementById('resultContainer').style.display = 'none';
+        }
+    </script>
+</body>
+
+</html>

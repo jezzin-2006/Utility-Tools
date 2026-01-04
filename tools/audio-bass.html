@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bass Booster - UtilityTools</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
+    <style>
+        .workspace {
+            display: none;
+            margin-top: 2rem;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-lg);
+            padding: 3rem;
+            text-align: center;
+            background: #f8fafc;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            background: #eff6ff;
+            border-color: var(--primary);
+        }
+
+        #waveform {
+            background: #f1f5f9;
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border);
+        }
+
+        .controls-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 2rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .db-readout {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin: 1rem 0;
+        }
+
+        .action-bar {
+            margin-top: 2rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="../index.html" class="logo">UtilityTools</a>
+            <ul class="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="../audio-tools.html" class="active">Audio Tools</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: 4rem; padding-bottom: 4rem;">
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <h1>Bass Booster</h1>
+            <p style="color: var(--text-muted);">Crank up the low end.</p>
+        </div>
+
+        <div class="upload-area" id="dropZone" style="max-width: 800px; margin: 0 auto;">
+            <span style="font-size: 3rem;">🔊</span>
+            <h3>Upload Audio File</h3>
+            <p style="color: var(--text-light);">Supports MP3, WAV, OGG</p>
+            <input type="file" id="fileInput" accept="audio/*" style="display: none;">
+        </div>
+
+        <div class="workspace" id="workspace">
+            <div id="waveform"></div>
+
+            <div class="controls-container">
+                <label style="font-weight: 500; color: var(--text-main);">Boost Adjustment</label>
+                <div class="db-readout" id="dbDisplay">+0 dB</div>
+                <input type="range" id="boost" min="0" max="20" value="0" step="1" style="width: 100%;">
+
+                <div class="action-bar">
+                    <button class="btn btn-secondary" id="previewBtn">Preview Original</button>
+                    <button class="btn btn-primary" onclick="renderBass()">Process & Download</button>
+                </div>
+                <div id="status" style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-light);"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const dbDisplay = document.getElementById('dbDisplay');
+
+        let wavesurfer;
+        let audioBuffer;
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFile);
+
+        document.getElementById('boost').oninput = (e) => {
+            dbDisplay.innerText = `+${e.target.value} dB`;
+        };
+
+        async function handleFile(e) {
+            if (!e.target.files.length) return;
+            const file = e.target.files[0];
+
+            dropZone.style.display = 'none';
+            document.getElementById('workspace').style.display = 'block';
+
+            wavesurfer = WaveSurfer.create({
+                container: '#waveform',
+                waveColor: '#94a3b8',
+                progressColor: '#2563eb',
+                cursorColor: '#2563eb',
+                height: 80,
+            });
+
+            const arrayBuffer = await file.arrayBuffer();
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            audioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+
+            const blobUrl = URL.createObjectURL(file);
+            wavesurfer.load(blobUrl);
+
+            document.getElementById('previewBtn').onclick = () => wavesurfer.playPause();
+        }
+
+        async function renderBass() {
+            if (!audioBuffer) return;
+            const btn = document.querySelector('.btn-primary');
+            const status = document.getElementById('status');
+
+            btn.disabled = true;
+            status.innerText = "Processing...";
+
+            try {
+                const offlineCtx = new OfflineAudioContext(audioBuffer.numberOfChannels, audioBuffer.length, audioBuffer.sampleRate);
+
+                const source = offlineCtx.createBufferSource();
+                source.buffer = audioBuffer;
+
+                // Bass Boost Filter
+                const filter = offlineCtx.createBiquadFilter();
+                filter.type = "lowshelf";
+                filter.frequency.value = 200; // Standard bass freq
+                filter.gain.value = parseInt(document.getElementById('boost').value);
+
+                // Connect
+                source.connect(filter);
+                filter.connect(offlineCtx.destination);
+
+                source.start();
+
+                const renderedBuffer = await offlineCtx.startRendering();
+                const wavBlob = bufferToWave(renderedBuffer, renderedBuffer.length);
+                const url = URL.createObjectURL(wavBlob);
+
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'bass_boosted.wav';
+                a.click();
+
+                status.innerText = "Download Ready!";
+            } catch (err) {
+                status.innerText = "Error: " + err.message;
+            }
+            btn.disabled = false;
+        }
+
+        // Standard Buffer to WAV
+        function bufferToWave(abuffer, len) {
+            let numOfChan = abuffer.numberOfChannels,
+                length = len * numOfChan * 2 + 44,
+                buffer = new ArrayBuffer(length),
+                view = new DataView(buffer),
+                channels = [], i, sample,
+                offset = 0,
+                pos = 0;
+
+            setUint32(0x46464952); setUint32(length - 8); setUint32(0x45564157);
+            setUint32(0x20746d66); setUint32(16); setUint16(1); setUint16(numOfChan);
+            setUint32(abuffer.sampleRate); setUint32(abuffer.sampleRate * 2 * numOfChan);
+            setUint16(numOfChan * 2); setUint16(16); setUint32(0x61746164);
+            setUint32(length - pos - 4);
+
+            for (i = 0; i < abuffer.numberOfChannels; i++) channels.push(abuffer.getChannelData(i));
+
+            while (pos < len) {
+                for (i = 0; i < numOfChan; i++) {
+                    sample = Math.max(-1, Math.min(1, channels[i][pos]));
+                    sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+                    view.setInt16(44 + offset, sample, true);
+                    offset += 2;
+                }
+                pos++;
+            }
+            return new Blob([buffer], { type: "audio/wav" });
+            function setUint16(data) { view.setUint16(pos, data, true); pos += 2; }
+            function setUint32(data) { view.setUint32(pos, data, true); pos += 4; }
+        }
+    </script>
+</body>
+
+</html>

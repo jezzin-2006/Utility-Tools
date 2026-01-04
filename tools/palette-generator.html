@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Palette Generator - UtilityTools</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <style>
+        .layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        @media (min-width: 900px) {
+            .layout {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .image-box {
+            background: var(--bg-surface);
+            padding: 1rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .image-box img {
+            max-width: 100%;
+            border-radius: var(--radius-sm);
+            max-height: 500px;
+        }
+
+        .palette-box {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .swatch-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 1rem;
+        }
+
+        .swatch {
+            aspect-ratio: 1;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            position: relative;
+            box-shadow: var(--shadow-sm);
+            transition: transform 0.2s;
+            display: flex;
+            align-items: flex-end;
+            overflow: hidden;
+        }
+
+        .swatch:hover {
+            transform: scale(1.05);
+            box-shadow: var(--shadow-md);
+        }
+
+        .color-code {
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            width: 100%;
+            font-size: 0.8rem;
+            text-align: center;
+            padding: 4px 0;
+            backdrop-filter: blur(4px);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .swatch:hover .color-code {
+            opacity: 1;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-lg);
+            padding: 3rem;
+            text-align: center;
+            background: #f8fafc;
+            cursor: pointer;
+            margin-bottom: 2rem;
+        }
+
+        .upload-area:hover {
+            background: #eff6ff;
+            border-color: var(--primary);
+        }
+
+        .dominant-color {
+            height: 120px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            margin-bottom: 1rem;
+            cursor: pointer;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e293b;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 50px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="../index.html" class="logo">UtilityTools</a>
+            <ul class="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="../image-tools.html" class="active">Image Tools</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: 4rem; padding-bottom: 4rem;">
+
+        <div class="upload-area" id="dropZone" style="max-width: 800px; margin: 0 auto;">
+            <span style="font-size: 3rem;">🌈</span>
+            <h3>Upload Image for Palette</h3>
+            <input type="file" id="fileInput" accept="image/*" style="display: none;">
+        </div>
+
+        <div class="layout" id="results" style="display:none;">
+            <div class="image-box">
+                <img id="previewImg" crossorigin="anonymous">
+            </div>
+
+            <div class="palette-box">
+                <div>
+                    <h3>Dominant Color</h3>
+                    <div id="dominantSwatch" class="dominant-color" onclick="copyColor(this.dataset.hex)">
+                        #Unknown
+                    </div>
+                </div>
+
+                <div>
+                    <h3>Color Palette</h3>
+                    <div class="swatch-grid" id="paletteGrid">
+                        <!-- Swatches injected here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="toast" id="toast">Copied to clipboard!</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const previewImg = document.getElementById('previewImg');
+        const colorThief = new ColorThief();
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) handleFile(e.target.files[0]);
+        });
+
+        function handleFile(file) {
+            const url = URL.createObjectURL(file);
+            previewImg.src = url;
+
+            previewImg.onload = () => {
+                dropZone.style.display = 'none';
+                document.getElementById('results').style.display = 'grid';
+                extractColors();
+            };
+        }
+
+        function extractColors() {
+            // Dominant
+            const dominant = colorThief.getColor(previewImg);
+            const domHex = rgbToHex(dominant[0], dominant[1], dominant[2]);
+
+            const domEl = document.getElementById('dominantSwatch');
+            domEl.style.backgroundColor = `rgb(${dominant.join(',')})`;
+            domEl.textContent = domHex;
+            domEl.dataset.hex = domHex;
+
+            // Palette (10 colors)
+            const palette = colorThief.getPalette(previewImg, 10);
+            const grid = document.getElementById('paletteGrid');
+            grid.innerHTML = '';
+
+            palette.forEach(color => {
+                const hex = rgbToHex(color[0], color[1], color[2]);
+                const el = document.createElement('div');
+                el.className = 'swatch';
+                el.style.backgroundColor = `rgb(${color.join(',')})`;
+                el.innerHTML = `<div class="color-code">${hex}</div>`;
+                el.onclick = () => copyColor(hex);
+                grid.appendChild(el);
+            });
+        }
+
+        function rgbToHex(r, g, b) {
+            return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
+        }
+
+        function copyColor(hex) {
+            navigator.clipboard.writeText(hex);
+            const toast = document.getElementById('toast');
+            toast.textContent = `Copied ${hex}!`;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+    </script>
+</body>
+
+</html>

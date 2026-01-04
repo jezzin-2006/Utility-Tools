@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Trimmer - UtilityTools</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
+    <style>
+        .workspace {
+            display: none;
+            margin-top: 2rem;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-lg);
+            padding: 3rem;
+            text-align: center;
+            background: #f8fafc;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            background: #eff6ff;
+            border-color: var(--primary);
+        }
+
+        #waveform {
+            background: #f1f5f9;
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border);
+        }
+
+        .controls-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 2rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .timer-display {
+            display: flex;
+            justify-content: space-between;
+            font-family: monospace;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 2rem;
+            color: var(--text-main);
+            background: #f1f5f9;
+            padding: 1rem;
+            border-radius: var(--radius-sm);
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="../index.html" class="logo">UtilityTools</a>
+            <ul class="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="../audio-tools.html" class="active">Audio Tools</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: 4rem; padding-bottom: 4rem;">
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <h1>Audio Trimmer</h1>
+            <p style="color: var(--text-muted);">Cut audio with precision.</p>
+        </div>
+
+        <div class="upload-area" id="dropZone" style="max-width: 800px; margin: 0 auto;">
+            <span style="font-size: 3rem;">✂️</span>
+            <h3>Upload Audio File</h3>
+            <p style="color: var(--text-light);">Supports MP3, WAV, OGG</p>
+            <input type="file" id="fileInput" accept="audio/*" style="display: none;">
+        </div>
+
+        <div class="workspace" id="workspace">
+            <div id="waveform"></div>
+
+            <div class="controls-container">
+                <div class="timer-display">
+                    <div>Start: <span id="startLabel">0.00s</span></div>
+                    <div>End: <span id="endLabel">0.00s</span></div>
+                </div>
+
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button class="btn btn-secondary" id="playBtn" style="flex: 1;">▶ Play Selection</button>
+                    <button class="btn btn-primary" onclick="trimAudio()" style="flex: 1;">Trim & Download</button>
+                </div>
+
+                <div id="status" style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-light);"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+
+        let wavesurfer;
+        let originalBuffer;
+        let regionsPlugin;
+        let activeRegion;
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFile);
+
+        async function handleFile(e) {
+            if (!e.target.files.length) return;
+            const file = e.target.files[0];
+
+            dropZone.style.display = 'none';
+            document.getElementById('workspace').style.display = 'block';
+
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const arrayBuffer = await file.arrayBuffer();
+            originalBuffer = await ctx.decodeAudioData(arrayBuffer);
+
+            wavesurfer = WaveSurfer.create({
+                container: '#waveform',
+                waveColor: '#94a3b8',
+                progressColor: '#2563eb',
+                cursorColor: '#2563eb',
+                height: 120,
+            });
+
+            regionsPlugin = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
+            wavesurfer.load(URL.createObjectURL(file));
+
+            wavesurfer.on('ready', () => {
+                const dur = wavesurfer.getDuration();
+                regionsPlugin.addRegion({
+                    start: dur * 0.25,
+                    end: dur * 0.75,
+                    color: 'rgba(37, 99, 235, 0.2)', // Light Blue alpha
+                    drag: true,
+                    resize: true
+                });
+            });
+
+            regionsPlugin.on('region-updated', (region) => {
+                activeRegion = region;
+                document.getElementById('startLabel').innerText = region.start.toFixed(2) + 's';
+                document.getElementById('endLabel').innerText = region.end.toFixed(2) + 's';
+            });
+
+            regionsPlugin.on('region-created', (region) => { activeRegion = region; });
+
+            document.getElementById('playBtn').onclick = () => {
+                if (activeRegion) activeRegion.play();
+                else wavesurfer.playPause();
+            };
+        }
+
+        async function trimAudio() {
+            if (!activeRegion || !originalBuffer) return;
+
+            const btn = document.querySelector('.btn-primary');
+            const status = document.getElementById('status');
+            btn.disabled = true;
+            status.innerText = "Processing...";
+
+            const start = activeRegion.start;
+            const end = activeRegion.end;
+            const rate = originalBuffer.sampleRate;
+
+            const startOffset = Math.floor(start * rate);
+            const endOffset = Math.floor(end * rate);
+            const frameCount = endOffset - startOffset;
+
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const newBuffer = ctx.createBuffer(originalBuffer.numberOfChannels, frameCount, rate);
+
+            for (let ch = 0; ch < originalBuffer.numberOfChannels; ch++) {
+                const channelData = originalBuffer.getChannelData(ch);
+                const newChannelData = newBuffer.getChannelData(ch);
+                for (let i = 0; i < frameCount; i++) newChannelData[i] = channelData[i + startOffset];
+            }
+
+            const wavBlob = bufferToWave(newBuffer, frameCount);
+            const url = URL.createObjectURL(wavBlob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'trimmed_clip.wav';
+            a.click();
+
+            status.innerText = "Download Ready!";
+            btn.disabled = false;
+        }
+
+        function bufferToWave(abuffer, len) {
+            let numOfChan = abuffer.numberOfChannels,
+                length = len * numOfChan * 2 + 44,
+                buffer = new ArrayBuffer(length),
+                view = new DataView(buffer),
+                channels = [], i, sample,
+                offset = 0,
+                pos = 0;
+            setUint32(0x46464952); setUint32(length - 8); setUint32(0x45564157);
+            setUint32(0x20746d66); setUint32(16); setUint16(1); setUint16(numOfChan);
+            setUint32(abuffer.sampleRate); setUint32(abuffer.sampleRate * 2 * numOfChan);
+            setUint16(numOfChan * 2); setUint16(16); setUint32(0x61746164);
+            setUint32(length - pos - 4);
+            for (i = 0; i < abuffer.numberOfChannels; i++) channels.push(abuffer.getChannelData(i));
+            while (pos < len) {
+                for (i = 0; i < numOfChan; i++) {
+                    sample = Math.max(-1, Math.min(1, channels[i][pos]));
+                    sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+                    view.setInt16(44 + offset, sample, true); offset += 2;
+                } pos++;
+            }
+            return new Blob([buffer], { type: "audio/wav" });
+            function setUint16(data) { view.setUint16(pos, data, true); pos += 2; }
+            function setUint32(data) { view.setUint32(pos, data, true); pos += 4; }
+        }
+    </script>
+</body>
+
+</html>

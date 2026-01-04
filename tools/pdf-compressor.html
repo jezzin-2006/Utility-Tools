@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Compressor - UtilityTools</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <style>
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-lg);
+            padding: 3rem;
+            text-align: center;
+            background: #f8fafc;
+            cursor: pointer;
+        }
+
+        .result-box {
+            margin-top: 2rem;
+            text-align: center;
+            display: none;
+            background: var(--bg-surface);
+            padding: 2rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="../index.html" class="logo">UtilityTools</a>
+            <ul class="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="../pdf-tools.html" class="active">PDF Tools</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: 4rem; padding-bottom: 4rem;">
+        <div style="max-width: 800px; margin: 0 auto;">
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <h1>PDF Compressor</h1>
+                <p style="color: var(--text-muted);">Optimize PDF structure to reduce file size.</p>
+            </div>
+
+            <div class="upload-area" id="dropZone">
+                <span style="font-size: 3rem;">🗜️</span>
+                <h3>Upload PDF to Compress</h3>
+                <div id="loadingText" style="display:none; margin-top: 1rem; color: var(--primary);">Processing...</div>
+                <input type="file" id="fileInput" accept=".pdf" style="display: none;">
+            </div>
+
+            <div class="result-box" id="resultBox">
+                <h3>Compression Complete!</h3>
+                <p id="stats" style="margin: 1rem 0; color: var(--text-muted);"></p>
+                <button class="btn btn-primary" id="downloadBtn">Download PDF</button>
+                <div style="margin-top: 1rem;">
+                    <button class="btn btn-secondary" onclick="location.reload()">Compress Another</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) processPDF(e.target.files[0]);
+        });
+
+        async function processPDF(file) {
+            document.getElementById('loadingText').style.display = 'block';
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                // Load and save - pdf-lib often optimizes binary structure on save
+                const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+                const pdfBytes = await pdfDoc.save({ useObjectStreams: false }); // sometimes simpler streams are smaller? actually useObjectStreams=false makes it compat but larger? Default is true? 
+                // Wait, default is false in some versions? No, creating new document is better.
+
+                // Better strategy: Create new doc and copy pages. This strips unused objects.
+                const newPdf = await PDFLib.PDFDocument.create();
+                const copiedPages = await newPdf.copyPages(pdfDoc, pdfDoc.getPageIndices());
+                copiedPages.forEach(p => newPdf.addPage(p));
+
+                const compressedBytes = await newPdf.save();
+
+                showResult(file.size, compressedBytes.byteLength, compressedBytes);
+            } catch (e) {
+                alert('Error processing PDF: ' + e.message);
+                document.getElementById('loadingText').style.display = 'none';
+            }
+        }
+
+        function showResult(oldSize, newSize, data) {
+            dropZone.style.display = 'none';
+            document.getElementById('resultBox').style.display = 'block';
+
+            const savings = oldSize - newSize;
+            const pct = Math.round((savings / oldSize) * 100);
+
+            const msg = savings > 0
+                ? `Reduced from <b>${formatBytes(oldSize)}</b> to <b>${formatBytes(newSize)}</b> (-${pct}%)`
+                : `Already optimized! size: ${formatBytes(newSize)}`;
+
+            document.getElementById('stats').innerHTML = msg;
+
+            const blob = new Blob([data], { type: 'application/pdf' });
+            const url = URL.createObjectURL(blob);
+            const btn = document.getElementById('downloadBtn');
+            btn.onclick = () => {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'compressed.pdf';
+                a.click();
+            };
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+    </script>
+</body>
+
+</html>

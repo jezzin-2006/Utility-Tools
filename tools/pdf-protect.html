@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Protect PDF - UtilityTools</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <style>
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-lg);
+            padding: 3rem;
+            text-align: center;
+            background: #f8fafc;
+            cursor: pointer;
+        }
+
+        input {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            width: 100%;
+            max-width: 300px;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="../index.html" class="logo">UtilityTools</a>
+            <ul class="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="../pdf-tools.html" class="active">PDF Tools</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: 4rem;">
+        <div style="max-width: 800px; margin: 0 auto; text-align: center;">
+            <h1>Protect / Unlock PDF</h1>
+            <p style="color: var(--text-muted); margin-bottom: 2rem;">Add encryption or remove password protection.</p>
+
+            <div class="upload-area" id="dropZone">
+                <span style="font-size: 3rem;">🔐</span>
+                <h3>Upload PDF</h3>
+                <input type="file" id="fileInput" accept=".pdf" style="display: none;">
+            </div>
+
+            <div id="controls"
+                style="display: none; margin-top: 2rem; background:white; padding: 2rem; border:1px solid #ddd;">
+                <h3>Set Password</h3>
+                <input type="password" id="password" placeholder="Enter new password">
+                <br>
+                <button class="btn btn-primary" onclick="protect()">Encrypt & Download</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        let currentFile = null;
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                currentFile = e.target.files[0];
+                dropZone.style.display = 'none';
+                document.getElementById('controls').style.display = 'block';
+            }
+        });
+
+        async function protect() {
+            if (!currentFile) return;
+            const password = document.getElementById('password').value;
+            if (!password) { alert('Please enter a password'); return; }
+
+            const buffer = await currentFile.arrayBuffer();
+            const pdfDoc = await PDFLib.PDFDocument.load(buffer);
+
+            // Encrypt
+            pdfDoc.encrypt({
+                userPassword: password,
+                ownerPassword: password,
+                permissions: { printing: 'highResolution', modifying: false, copying: false }
+            });
+
+            const bytes = await pdfDoc.save();
+            const blob = new Blob([bytes], { type: 'application/pdf' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'protected.pdf';
+            link.click();
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Editor - UtilityTools</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <style>
+        .editor-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        @media (min-width: 900px) {
+            .editor-container {
+                grid-template-columns: 300px 1fr;
+            }
+        }
+
+        .controls-sidebar {
+            background: var(--bg-surface);
+            padding: 1.5rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            height: fit-content;
+        }
+
+        .canvas-area {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #e2e8f0;
+            border-radius: var(--radius-md);
+            min-height: 500px;
+            padding: 2rem;
+            overflow: hidden;
+        }
+
+        .upload-trigger {
+            text-align: center;
+            cursor: pointer;
+        }
+
+        img#targetImage {
+            max-width: 100%;
+            max-height: 600px;
+            box-shadow: var(--shadow-xl);
+            transition: filter 0.1s;
+            /* smooth updates */
+        }
+
+        .range-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .range-group label {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        input[type=range] {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .filter-btn-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .filter-btn {
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .filter-btn:hover {
+            background: #f1f5f9;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="../index.html" class="logo">UtilityTools</a>
+            <ul class="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="../image-tools.html" class="active">Image Tools</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: 3rem; padding-bottom: 4rem;">
+
+        <div class="editor-container" id="workspace" style="display:none;">
+            <!-- Controls -->
+            <div class="controls-sidebar">
+                <h3>Adjustments</h3>
+                <br>
+
+                <div class="range-group">
+                    <label>Brightness <span id="val-brightness">100%</span></label>
+                    <input type="range" min="0" max="200" value="100" data-filter="brightness">
+                </div>
+                <div class="range-group">
+                    <label>Contrast <span id="val-contrast">100%</span></label>
+                    <input type="range" min="0" max="200" value="100" data-filter="contrast">
+                </div>
+                <div class="range-group">
+                    <label>Saturation <span id="val-saturate">100%</span></label>
+                    <input type="range" min="0" max="200" value="100" data-filter="saturate">
+                </div>
+                <div class="range-group">
+                    <label>Grayscale <span id="val-grayscale">0%</span></label>
+                    <input type="range" min="0" max="100" value="0" data-filter="grayscale">
+                </div>
+                <div class="range-group">
+                    <label>Sepia <span id="val-sepia">0%</span></label>
+                    <input type="range" min="0" max="100" value="0" data-filter="sepia">
+                </div>
+                <div class="range-group">
+                    <label>Blur <span id="val-blur">0px</span></label>
+                    <input type="range" min="0" max="10" value="0" step="0.5" data-filter="blur">
+                </div>
+
+                <div style="margin-top: 2rem;">
+                    <button class="btn btn-primary" style="width: 100%; margin-bottom: 1rem;"
+                        onclick="downloadImage()">Download Enhanced</button>
+                    <button class="btn btn-secondary" style="width: 100%;" onclick="resetFilters()">Reset
+                        Filters</button>
+                    <button class="btn btn-secondary"
+                        style="width: 100%; margin-top: 0.5rem; color: #ef4444; border-color: #ef4444;"
+                        onclick="location.reload()">Upload New</button>
+                </div>
+            </div>
+
+            <!-- Preview -->
+            <div class="canvas-area">
+                <img id="targetImage" src="">
+            </div>
+        </div>
+
+        <!-- Initial Upload State -->
+        <div class="upload-area" id="dropZone" style="max-width: 800px; margin: 4rem auto;">
+            <span style="font-size: 3rem;">🎨</span>
+            <h3>Image Editor</h3>
+            <p style="color: var(--text-muted); margin-bottom: 1rem;">Enhance photos with filters.</p>
+            <button class="btn btn-primary">Select Image</button>
+            <input type="file" id="fileInput" accept="image/*" style="display: none;">
+        </div>
+
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const workspace = document.getElementById('workspace');
+        const img = document.getElementById('targetImage');
+        const inputs = document.querySelectorAll('input[type="range"]');
+
+        let defaultSettings = {
+            brightness: 100,
+            contrast: 100,
+            saturate: 100,
+            grayscale: 0,
+            sepia: 0,
+            blur: 0
+        };
+
+        // Upload Logic
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        dropZone.style.display = 'none';
+                        workspace.style.display = 'grid'; // Enable editor
+                    };
+                };
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        });
+
+        // Filter Logic
+        inputs.forEach(input => {
+            input.addEventListener('input', updateFilters);
+        });
+
+        function updateFilters() {
+            let filterString = '';
+            inputs.forEach(input => {
+                const type = input.dataset.filter;
+                const val = input.value;
+                const unit = type === 'blur' ? 'px' : '%';
+
+                // Update label
+                document.getElementById(`val-${type}`).textContent = val + unit;
+
+                filterString += `${type}(${val}${unit}) `;
+            });
+            img.style.filter = filterString;
+        }
+
+        function resetFilters() {
+            inputs.forEach(input => {
+                const type = input.dataset.filter;
+                input.value = defaultSettings[type];
+            });
+            updateFilters();
+        }
+
+        function downloadImage() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+
+            // Apply filters to context
+            ctx.filter = getComputedStyle(img).filter;
+
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            const link = document.createElement('a');
+            link.download = 'enhanced-image.jpg';
+            link.href = canvas.toDataURL('image/jpeg', 0.9);
+            link.click();
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collage Maker - UtilityTools</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <style>
+        .layout-options {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .layout-card {
+            border: 2px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            cursor: pointer;
+            width: 100px;
+            text-align: center;
+        }
+
+        .layout-card:hover {
+            border-color: var(--primary-light);
+            background: #f1f5f9;
+        }
+
+        .layout-card.active {
+            border-color: var(--primary);
+            background: #eff6ff;
+            color: var(--primary);
+        }
+
+        .layout-icon {
+            display: grid;
+            gap: 2px;
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 0.5rem auto;
+            background: #cbd5e1;
+        }
+
+        /* Icons for Layouts */
+        .icon-grid-2 {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .icon-grid-4 {
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+        }
+
+        .icon-vert-2 {
+            grid-template-rows: 1fr 1fr;
+        }
+
+        .icon-hoz-3 {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        .layout-icon div {
+            background: white;
+        }
+
+        .collage-workspace {
+            background: #e2e8f0;
+            padding: 2rem;
+            min-height: 500px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: var(--radius-md);
+        }
+
+        /* The canvas look-alike container */
+        .collage-container {
+            background: white;
+            box-shadow: var(--shadow-xl);
+            width: 600px;
+            height: 600px;
+            display: grid;
+            gap: 10px;
+            /* spacing */
+            padding: 10px;
+            overflow: hidden;
+        }
+
+        /* Dynamic Grid Classes */
+        .grid-2 {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .grid-4 {
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+        }
+
+        .vert-2 {
+            grid-template-rows: 1fr 1fr;
+        }
+
+        .hoz-3 {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        .collage-slot {
+            background: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            border: 2px dashed #cbd5e1;
+            transition: all 0.2s;
+        }
+
+        .collage-slot:hover {
+            background: #e2e8f0;
+            border-color: var(--text-light);
+        }
+
+        .collage-slot img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+
+        .slot-placeholder {
+            pointer-events: none;
+            color: var(--text-light);
+            font-size: 2rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="../index.html" class="logo">UtilityTools</a>
+            <ul class="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="../image-tools.html" class="active">Image Tools</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: 4rem; padding-bottom: 4rem;">
+
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <h1>Collage Maker</h1>
+            <p style="color: var(--text-muted);">Choose a layout and upload your photos.</p>
+        </div>
+
+        <!-- Layout Selector -->
+        <div class="layout-options">
+            <div class="layout-card active" onclick="setLayout('grid-2', 2)">
+                <div class="layout-icon icon-grid-2">
+                    <div></div>
+                    <div></div>
+                </div>
+                <span>2 Side</span>
+            </div>
+            <div class="layout-card" onclick="setLayout('vert-2', 2)">
+                <div class="layout-icon icon-vert-2">
+                    <div></div>
+                    <div></div>
+                </div>
+                <span>2 Vert</span>
+            </div>
+            <div class="layout-card" onclick="setLayout('hoz-3', 3)">
+                <div class="layout-icon icon-hoz-3">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <span>3 Col</span>
+            </div>
+            <div class="layout-card" onclick="setLayout('grid-4', 4)">
+                <div class="layout-icon icon-grid-4">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <span>4 Grid</span>
+            </div>
+        </div>
+
+        <div class="collage-workspace">
+            <div class="collage-container grid-2" id="collageContainer">
+                <!-- Slots injected by JS -->
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 2rem;">
+            <button class="btn btn-primary" onclick="downloadCollage()">Download Collage</button>
+            <input type="file" id="slotInput" accept="image/*" style="display: none;">
+        </div>
+
+    </div>
+
+    <!-- html2canvas for capturing DOM -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <script>
+        const container = document.getElementById('collageContainer');
+        const slotInput = document.getElementById('slotInput');
+        let activeSlot = null;
+
+        // Init
+        setLayout('grid-2', 2);
+
+        function setLayout(className, count) {
+            // Update UI
+            document.querySelectorAll('.layout-card').forEach(c => c.classList.remove('active'));
+            // Find the card that called this (hacky but simple)
+            document.querySelectorAll('.layout-card').forEach(c => {
+                if (c.innerHTML.includes(className.replace('grid', 'icon-grid').replace('vert', 'icon-vert').replace('hoz', 'icon-hoz')))
+                    c.classList.add('active');
+            });
+            event && event.currentTarget && event.currentTarget.classList.add('active');
+
+            // Reset Container
+            container.className = `collage-container ${className}`;
+            container.innerHTML = '';
+
+            for (let i = 0; i < count; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'collage-slot';
+                slot.innerHTML = `
+                    <span class="slot-placeholder">+</span>
+                    <img src="">
+                `;
+                slot.onclick = () => triggerUpload(slot);
+                container.appendChild(slot);
+            }
+        }
+
+        function triggerUpload(slot) {
+            activeSlot = slot;
+            slotInput.click();
+        }
+
+        slotInput.addEventListener('change', (e) => {
+            if (e.target.files.length && activeSlot) {
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    const img = activeSlot.querySelector('img');
+                    img.src = evt.target.result;
+                    img.style.display = 'block';
+                    activeSlot.querySelector('.slot-placeholder').style.display = 'none';
+                    activeSlot.style.border = 'none';
+                    activeSlot.style.background = 'black'; // for cover fit
+                };
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        });
+
+        function downloadCollage() {
+            html2canvas(container, {
+                scale: 2, // Hi-res
+                backgroundColor: "#ffffff"
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'my-collage.jpg';
+                link.href = canvas.toDataURL('image/jpeg', 0.9);
+                link.click();
+            });
+        }
+    </script>
+</body>
+
+</html>

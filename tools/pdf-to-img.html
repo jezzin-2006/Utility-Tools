@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF to Image - UtilityTools</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <style>
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-lg);
+            padding: 3rem;
+            text-align: center;
+            background: #f8fafc;
+            cursor: pointer;
+        }
+
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .page-card {
+            background: white;
+            padding: 1rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            text-align: center;
+        }
+
+        .page-card canvas {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #eee;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="../index.html" class="logo">UtilityTools</a>
+            <ul class="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="../pdf-tools.html" class="active">PDF Tools</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: 4rem; padding-bottom: 4rem;">
+        <div style="max-width: 1000px; margin: 0 auto;">
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <h1>PDF to Image</h1>
+                <p style="color: var(--text-muted);">Convert PDF pages to JPG or PNG images.</p>
+            </div>
+
+            <div class="upload-area" id="dropZone">
+                <span style="font-size: 3rem;">🖼️</span>
+                <h3>Upload PDF</h3>
+                <input type="file" id="fileInput" accept=".pdf" style="display: none;">
+            </div>
+
+            <div id="controls" style="display: none; text-align: center; margin: 2rem 0;">
+                <button class="btn btn-primary" onclick="downloadAll()">Download All (ZIP)</button>
+                <button class="btn btn-secondary" onclick="location.reload()">Reset</button>
+            </div>
+
+            <div class="preview-grid" id="grid"></div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) loadPDF(e.target.files[0]);
+        });
+
+        async function loadPDF(file) {
+            dropZone.style.display = 'none';
+            document.getElementById('controls').style.display = 'block';
+
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+
+            for (let i = 1; i <= pdf.numPages; i++) {
+                renderPage(pdf, i);
+            }
+        }
+
+        async function renderPage(pdf, pageNum) {
+            const page = await pdf.getPage(pageNum);
+            const viewport = page.getViewport({ scale: 1.5 });
+
+            const div = document.createElement('div');
+            div.className = 'page-card';
+
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+
+            const ctx = canvas.getContext('2d');
+            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+            div.appendChild(canvas);
+
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-secondary';
+            btn.style.fontSize = '0.8rem';
+            btn.style.padding = '0.5rem';
+            btn.innerText = `Download Page ${pageNum}`;
+            btn.onclick = () => downloadCanvas(canvas, `page_${pageNum}.jpg`);
+
+            div.appendChild(btn);
+            document.getElementById('grid').appendChild(div);
+        }
+
+        function downloadCanvas(canvas, name) {
+            const link = document.createElement('a');
+            link.download = name;
+            link.href = canvas.toDataURL('image/jpeg');
+            link.click();
+        }
+
+        async function downloadAll() {
+            const zip = new JSZip();
+            const canvases = document.querySelectorAll('canvas');
+
+            canvases.forEach((canvas, i) => {
+                const data = canvas.toDataURL('image/jpeg').split(',')[1];
+                zip.file(`page_${i + 1}.jpg`, data, { base64: true });
+            });
+
+            const content = await zip.generateAsync({ type: "blob" });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(content);
+            a.download = "pdf_images.zip";
+            a.click();
+        }
+    </script>
+</body>
+
+</html>
