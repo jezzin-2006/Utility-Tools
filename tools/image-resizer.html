@@ -92,9 +92,15 @@
     <nav class="navbar">
         <div class="container nav-container">
             <a href="../index.html" class="logo">UtilityTools</a>
+            <button class="hamburger" aria-label="Toggle navigation">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </button>
             <ul class="nav-menu">
                 <li><a href="../index.html">Home</a></li>
                 <li><a href="../image-tools.html" class="active">Image Tools</a></li>
+                <li><a href="https://github.com/jezzin-2006" target="_blank">GitHub</a></li>
             </ul>
         </div>
     </nav>
@@ -184,20 +190,16 @@
         });
 
         function handleFile(file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                originalImage = new Image();
-                originalImage.onload = () => {
-                    aspectRatio = originalImage.width / originalImage.height;
-                    widthInput.value = originalImage.width;
-                    heightInput.value = originalImage.height;
+            originalImage = new Image();
+            originalImage.onload = () => {
+                aspectRatio = originalImage.width / originalImage.height;
+                widthInput.value = originalImage.width;
+                heightInput.value = originalImage.height;
 
-                    dropZone.style.display = 'none';
-                    controlsPanel.style.display = 'block';
-                };
-                originalImage.src = e.target.result;
+                dropZone.style.display = 'none';
+                controlsPanel.style.display = 'block';
             };
-            reader.readAsDataURL(file);
+            originalImage.src = URL.createObjectURL(file);
         }
 
         widthInput.addEventListener('input', () => {
@@ -234,16 +236,21 @@
             canvas.height = h;
             ctx.drawImage(originalImage, 0, 0, w, h);
 
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-            const link = document.createElement('a');
-            link.download = 'resized-image.jpg';
-            link.href = dataUrl;
-            link.click();
+            canvas.toBlob((blob) => {
+                const dataUrl = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.download = 'resized-image.jpg';
+                link.href = dataUrl;
+                link.click();
 
-            // Preview
-            document.getElementById('previewBox').style.display = 'block';
-            document.getElementById('resultImage').src = dataUrl;
-            document.getElementById('newDimensions').textContent = `${w} x ${h} pixels`;
+                // Preview
+                document.getElementById('previewBox').style.display = 'block';
+                document.getElementById('resultImage').src = dataUrl;
+                document.getElementById('newDimensions').textContent = `${w} x ${h} pixels`;
+
+                // Cleanup after delay
+                setTimeout(() => URL.revokeObjectURL(dataUrl), 5000);
+            }, 'image/jpeg', 0.9);
         }
 
         function resetTool() {
@@ -254,6 +261,7 @@
             document.getElementById('previewBox').style.display = 'none';
         }
     </script>
+    <script src="../assets/js/script.js"></script>
 </body>
 
 </html>

@@ -146,10 +146,15 @@
     <nav class="navbar">
         <div class="container nav-container">
             <a href="../index.html" class="logo">UtilityTools</a>
+            <button class="hamburger" aria-label="Toggle navigation">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </button>
             <ul class="nav-menu">
                 <li><a href="../index.html">Home</a></li>
                 <li><a href="../image-tools.html" class="active">Image Tools</a></li>
-                <li><a href="#">GitHub</a></li>
+                <li><a href="https://github.com/jezzin-2006" target="_blank">GitHub</a></li>
             </ul>
         </div>
     </nav>
@@ -346,22 +351,36 @@
             try {
                 let mimeType = `image/${targetFormat}`;
 
-                const dataUrl = canvas.toDataURL(mimeType, 0.9);
+                canvas.toBlob((blob) => {
+                    if (!blob) {
+                        alert("Browser does not support saving to " + targetFormat.toUpperCase());
+                        return;
+                    }
+                    const dataUrl = URL.createObjectURL(blob); // For preview
 
-                optionsPanel.style.display = 'none';
-                resultPanel.style.display = 'block';
+                    optionsPanel.style.display = 'none';
+                    resultPanel.style.display = 'block';
 
-                document.getElementById('resultImage').src = dataUrl;
-                document.getElementById('resultMeta').textContent = `Converted to ${targetFormat.toUpperCase()}`;
+                    const resultImg = document.getElementById('resultImage');
+                    resultImg.onload = () => {
+                        // Optional: revoke old object URL if checking strictly
+                    };
+                    resultImg.src = dataUrl;
 
-                const downloadBtn = document.getElementById('downloadBtn');
-                downloadBtn.href = dataUrl;
-                const nameWithoutExt = originalFileName.substring(0, originalFileName.lastIndexOf('.')) || originalFileName;
-                const ext = targetFormat === 'jpeg' ? 'jpg' : targetFormat;
-                downloadBtn.download = `${nameWithoutExt}_converted.${ext}`;
+                    document.getElementById('resultMeta').textContent = `Converted to ${targetFormat.toUpperCase()}`;
+
+                    const downloadBtn = document.getElementById('downloadBtn');
+                    downloadBtn.href = dataUrl; // Points to Blob
+                    const nameWithoutExt = originalFileName.substring(0, originalFileName.lastIndexOf('.')) || originalFileName;
+                    const ext = targetFormat === 'jpeg' ? 'jpg' : targetFormat;
+                    downloadBtn.download = `${nameWithoutExt}_converted.${ext}`;
+
+                    // Revoke later or on new conversion
+                    // Ideally we track it to revoke
+                }, mimeType, 0.9);
 
             } catch (e) {
-                alert("This browser may not support saving to " + targetFormat.toUpperCase() + ". Try PNG or JPG.");
+                alert("Error during conversion: " + e.message);
             }
         }
 
@@ -374,6 +393,7 @@
             showLoading(false);
         }
     </script>
+    <script src="../assets/js/script.js"></script>
 </body>
 
 </html>

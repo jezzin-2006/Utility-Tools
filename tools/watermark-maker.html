@@ -98,9 +98,15 @@
     <nav class="navbar">
         <div class="container nav-container">
             <a href="../index.html" class="logo">UtilityTools</a>
+            <button class="hamburger" aria-label="Toggle navigation">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </button>
             <ul class="nav-menu">
                 <li><a href="../index.html">Home</a></li>
                 <li><a href="../image-tools.html" class="active">Image Tools</a></li>
+                <li><a href="https://github.com/jezzin-2006" target="_blank">GitHub</a></li>
             </ul>
         </div>
     </nav>
@@ -182,22 +188,19 @@
         let currentPos = 'mc'; // middle-center
 
         // Upload
+        // Upload
         dropZone.addEventListener('click', () => mainInput.click());
         mainInput.addEventListener('change', (e) => {
             if (e.target.files.length) {
-                const reader = new FileReader();
-                reader.onload = (evt) => {
-                    img.src = evt.target.result;
-                    img.onload = () => {
-                        dropZone.style.display = 'none';
-                        document.getElementById('workspace').style.display = 'grid';
-                        // Initial sizing
-                        canvas.width = img.width;
-                        canvas.height = img.height;
-                        draw();
-                    };
+                img.src = URL.createObjectURL(e.target.files[0]);
+                img.onload = () => {
+                    dropZone.style.display = 'none';
+                    document.getElementById('workspace').style.display = 'grid';
+                    // Initial sizing
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    draw();
                 };
-                reader.readAsDataURL(e.target.files[0]);
             }
         });
 
@@ -258,12 +261,15 @@
         }
 
         function downloadImage() {
-            const link = document.createElement('a');
-            link.download = 'watermarked.jpg';
-            link.href = canvas.toDataURL('image/jpeg', 0.9);
-            link.click();
+            canvas.toBlob((blob) => {
+                const link = document.createElement('a');
+                link.download = 'watermarked.jpg';
+                link.href = URL.createObjectURL(blob);
+                link.click();
+            }, 'image/jpeg', 0.9);
         }
     </script>
+    <script src="../assets/js/script.js"></script>
 </body>
 
 </html>

@@ -85,9 +85,15 @@
     <nav class="navbar">
         <div class="container nav-container">
             <a href="../index.html" class="logo">UtilityTools</a>
+            <button class="hamburger" aria-label="Toggle navigation">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </button>
             <ul class="nav-menu">
                 <li><a href="../index.html">Home</a></li>
                 <li><a href="../image-tools.html" class="active">Image Tools</a></li>
+                <li><a href="https://github.com/jezzin-2006" target="_blank">GitHub</a></li>
             </ul>
         </div>
     </nav>
@@ -146,12 +152,10 @@
         dropZone.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    image.src = e.target.result;
+                image.src = URL.createObjectURL(e.target.files[0]);
+                image.onload = () => {
                     startCropper();
                 };
-                reader.readAsDataURL(e.target.files[0]);
             }
         });
 
@@ -174,14 +178,20 @@
 
         function cropImage() {
             const canvas = cropper.getCroppedCanvas();
-            const dataUrl = canvas.toDataURL('image/jpeg');
 
-            document.getElementById('resultContainer').style.display = 'block';
-            document.getElementById('resultImage').src = dataUrl;
-            document.getElementById('downloadBtn').href = dataUrl;
+            canvas.toBlob((blob) => {
+                const dataUrl = URL.createObjectURL(blob);
 
-            // Scroll to result
-            document.getElementById('resultContainer').scrollIntoView({ behavior: 'smooth' });
+                document.getElementById('resultContainer').style.display = 'block';
+                document.getElementById('resultImage').src = dataUrl;
+                document.getElementById('downloadBtn').href = dataUrl;
+
+                // Scroll to result
+                document.getElementById('resultContainer').scrollIntoView({ behavior: 'smooth' });
+
+                // Cleanup
+                setTimeout(() => URL.revokeObjectURL(dataUrl), 5000);
+            }, 'image/jpeg');
         }
 
         function resetTool() {
@@ -192,6 +202,7 @@
             document.getElementById('resultContainer').style.display = 'none';
         }
     </script>
+    <script src="../assets/js/script.js"></script>
 </body>
 
 </html>

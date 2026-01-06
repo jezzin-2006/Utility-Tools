@@ -145,9 +145,15 @@
     <nav class="navbar">
         <div class="container nav-container">
             <a href="../index.html" class="logo">UtilityTools</a>
+            <button class="hamburger" aria-label="Toggle navigation">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </button>
             <ul class="nav-menu">
                 <li><a href="../index.html">Home</a></li>
                 <li><a href="../image-tools.html" class="active">Image Tools</a></li>
+                <li><a href="https://github.com/jezzin-2006" target="_blank">GitHub</a></li>
             </ul>
         </div>
     </nav>
@@ -251,16 +257,12 @@
 
         slotInput.addEventListener('change', (e) => {
             if (e.target.files.length && activeSlot) {
-                const reader = new FileReader();
-                reader.onload = (evt) => {
-                    const img = activeSlot.querySelector('img');
-                    img.src = evt.target.result;
-                    img.style.display = 'block';
-                    activeSlot.querySelector('.slot-placeholder').style.display = 'none';
-                    activeSlot.style.border = 'none';
-                    activeSlot.style.background = 'black'; // for cover fit
-                };
-                reader.readAsDataURL(e.target.files[0]);
+                const img = activeSlot.querySelector('img');
+                img.src = URL.createObjectURL(e.target.files[0]);
+                img.style.display = 'block';
+                activeSlot.querySelector('.slot-placeholder').style.display = 'none';
+                activeSlot.style.border = 'none';
+                activeSlot.style.background = 'black'; // for cover fit
             }
         });
 
@@ -269,13 +271,16 @@
                 scale: 2, // Hi-res
                 backgroundColor: "#ffffff"
             }).then(canvas => {
-                const link = document.createElement('a');
-                link.download = 'my-collage.jpg';
-                link.href = canvas.toDataURL('image/jpeg', 0.9);
-                link.click();
+                canvas.toBlob((blob) => {
+                    const link = document.createElement('a');
+                    link.download = 'my-collage.jpg';
+                    link.href = URL.createObjectURL(blob);
+                    link.click();
+                }, 'image/jpeg', 0.9);
             });
         }
     </script>
+    <script src="../assets/js/script.js"></script>
 </body>
 
 </html>

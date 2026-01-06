@@ -51,9 +51,15 @@
     <nav class="navbar">
         <div class="container nav-container">
             <a href="../index.html" class="logo">UtilityTools</a>
+            <button class="hamburger" aria-label="Toggle navigation">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </button>
             <ul class="nav-menu">
                 <li><a href="../index.html">Home</a></li>
                 <li><a href="../pdf-tools.html" class="active">PDF Tools</a></li>
+                <li><a href="https://github.com/jezzin-2006" target="_blank">GitHub</a></li>
             </ul>
         </div>
     </nav>
@@ -89,50 +95,86 @@
             if (e.target.files.length) loadPDF(e.target.files[0]);
         });
 
+        let pdfDoc = null;
+        let observer = null;
+
         async function loadPDF(file) {
             dropZone.style.display = 'none';
             document.getElementById('controls').style.display = 'block';
 
             const arrayBuffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+            pdfDoc = await pdfjsLib.getDocument(arrayBuffer).promise;
 
-            for (let i = 1; i <= pdf.numPages; i++) {
-                renderPage(pdf, i);
+            // Clean up previous
+            document.getElementById('grid').innerHTML = '';
+            if (observer) observer.disconnect();
+
+            // Setup Observer
+            observer = new IntersectionObserver((entries, obs) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const div = entry.target;
+                        const pageNum = parseInt(div.dataset.pageNum);
+                        renderPage(pdfDoc, pageNum, div);
+                        obs.unobserve(div);
+                    }
+                });
+            }, { rootMargin: '200px' });
+
+            // Create Placeholders
+            for (let i = 1; i <= pdfDoc.numPages; i++) {
+                const div = document.createElement('div');
+                div.className = 'page-card';
+                div.dataset.pageNum = i;
+                // Min height to allow scrolling
+                div.style.minHeight = '300px';
+                div.style.minWidth = '200px';
+                div.innerHTML = `<p style="margin-top: 50%; color: #94a3b8;">Page ${i}...</p>`;
+
+                document.getElementById('grid').appendChild(div);
+                observer.observe(div);
             }
         }
 
-        async function renderPage(pdf, pageNum) {
-            const page = await pdf.getPage(pageNum);
-            const viewport = page.getViewport({ scale: 1.5 });
+        async function renderPage(pdf, pageNum, container) {
+            try {
+                const page = await pdf.getPage(pageNum);
+                const viewport = page.getViewport({ scale: 1.5 });
 
-            const div = document.createElement('div');
-            div.className = 'page-card';
+                const canvas = document.createElement('canvas');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
 
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
+                const ctx = canvas.getContext('2d');
+                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
 
-            const ctx = canvas.getContext('2d');
-            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                container.innerHTML = ''; // Clear placeholder
+                container.appendChild(canvas);
 
-            div.appendChild(canvas);
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-secondary';
+                btn.style.fontSize = '0.8rem';
+                btn.style.padding = '0.5rem';
+                btn.innerText = `Download Page ${pageNum}`;
+                btn.style.marginTop = '0.5rem';
 
-            const btn = document.createElement('button');
-            btn.className = 'btn btn-secondary';
-            btn.style.fontSize = '0.8rem';
-            btn.style.padding = '0.5rem';
-            btn.innerText = `Download Page ${pageNum}`;
-            btn.onclick = () => downloadCanvas(canvas, `page_${pageNum}.jpg`);
+                // Use toBlob for download link to save memory
+                btn.onclick = () => {
+                    canvas.toBlob(blob => {
+                        const link = document.createElement('a');
+                        link.download = `page_${pageNum}.jpg`;
+                        const url = URL.createObjectURL(blob);
+                        link.href = url;
+                        link.click();
+                        setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    }, 'image/jpeg');
+                };
 
-            div.appendChild(btn);
-            document.getElementById('grid').appendChild(div);
-        }
-
-        function downloadCanvas(canvas, name) {
-            const link = document.createElement('a');
-            link.download = name;
-            link.href = canvas.toDataURL('image/jpeg');
-            link.click();
+                container.appendChild(btn);
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = '<p style="color:red">Error loading page</p>';
+            }
         }
 
         async function downloadAll() {
@@ -151,6 +193,7 @@
             a.click();
         }
     </script>
+    <script src="../assets/js/script.js"></script>
 </body>
 
 </html>

@@ -9,5 +9,5 @@ document.getElementById("primary-btn").addEventListener("click", () => {
 });
 
 document.getElementById("secondary-btn").addEventListener("click", () => {
-  window.open("https://github.com", "_blank", "noopener,noreferrer");
+  window.open("https://github.com/jezzin-2006", "_blank", "noopener,noreferrer");
 });

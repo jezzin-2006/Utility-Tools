@@ -97,9 +97,15 @@
     <nav class="navbar">
         <div class="container nav-container">
             <a href="../index.html" class="logo">UtilityTools</a>
+            <button class="hamburger" aria-label="Toggle navigation">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </button>
             <ul class="nav-menu">
                 <li><a href="../index.html">Home</a></li>
                 <li><a href="../image-tools.html" class="active">Image Tools</a></li>
+                <li><a href="https://github.com/jezzin-2006" target="_blank">GitHub</a></li>
             </ul>
         </div>
     </nav>
@@ -182,18 +188,15 @@
         };
 
         // Upload Logic
+        // Upload Logic
         dropZone.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    img.src = event.target.result;
-                    img.onload = () => {
-                        dropZone.style.display = 'none';
-                        workspace.style.display = 'grid'; // Enable editor
-                    };
+                img.src = URL.createObjectURL(e.target.files[0]);
+                img.onload = () => {
+                    dropZone.style.display = 'none';
+                    workspace.style.display = 'grid'; // Enable editor
                 };
-                reader.readAsDataURL(e.target.files[0]);
             }
         });
 
@@ -236,12 +239,15 @@
 
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-            const link = document.createElement('a');
-            link.download = 'enhanced-image.jpg';
-            link.href = canvas.toDataURL('image/jpeg', 0.9);
-            link.click();
+            canvas.toBlob((blob) => {
+                const link = document.createElement('a');
+                link.download = 'enhanced-image.jpg';
+                link.href = URL.createObjectURL(blob);
+                link.click();
+            }, 'image/jpeg', 0.9);
         }
     </script>
+    <script src="../assets/js/script.js"></script>
 </body>
 
 </html>

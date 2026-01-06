@@ -96,9 +96,15 @@
     <nav class="navbar">
         <div class="container nav-container">
             <a href="../index.html" class="logo">UtilityTools</a>
+            <button class="hamburger" aria-label="Toggle navigation">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </button>
             <ul class="nav-menu">
                 <li><a href="../index.html">Home</a></li>
                 <li><a href="../image-tools.html" class="active">Image Tools</a></li>
+                <li><a href="https://github.com/jezzin-2006" target="_blank">GitHub</a></li>
             </ul>
         </div>
     </nav>
@@ -218,13 +224,15 @@
             const ctx = canvas.getContext('2d');
             ctx.drawImage(previewImg, 0, 0);
 
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
-            const link = document.createElement('a');
-            link.download = 'clean_image.jpg';
-            link.href = dataUrl;
-            link.click();
+            canvas.toBlob((blob) => {
+                const link = document.createElement('a');
+                link.download = 'clean_image.jpg';
+                link.href = URL.createObjectURL(blob);
+                link.click();
+            }, 'image/jpeg', 0.95);
         }
     </script>
+    <script src="../assets/js/script.js"></script>
 </body>
 
 </html>
